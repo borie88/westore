@@ -26,7 +26,6 @@ export default function create(store, option) {
         }
         getApp().globalData && (getApp().globalData.store = store)
         //option.data = store.data
-        const onLoad = option.onLoad
         walk(store.data)
         // 解决函数属性初始化不能显示的问题，要求必须在data中声明使用
         // 这段代码是同步store.data到option.data，只有经过walk方法后store.data中的函数才能变成属性，才能被小程序page方法渲染
@@ -34,25 +33,49 @@ export default function create(store, option) {
             updatePath = getUpdatePath(option.data)
             syncValues(store.data, option.data)
         }
-        option.onLoad = function (e) {
-            this.store = store
-            this._updatePath = updatePath
-            rewriteUpdate(this)
-            store.instances[this.route] = []
-            store.instances[this.route].push(this)
-            onLoad && onLoad.call(this, e)
-            syncValues(store.data, this.data)
-            this.setData(this.data)
-        }
-	
-	// 解决执行navigateBack或reLaunch时清除store.instances对应页面的实例
-	const onUnload = option.onUnload
-        option.onUnload = function () {
-            onUnload && onUnload.call(this)
-            store.instances[this.route] = []
-        }
+        if (!option.methods) {
+            const onLoad = option.onLoad
+            option.onLoad = function (e) {
+                this.store = store
+                this._updatePath = updatePath
+                rewriteUpdate(this)
+                store.instances[this.route] = []
+                store.instances[this.route].push(this)
+                onLoad && onLoad.call(this, e)
+                syncValues(store.data, this.data)
+                this.setData(this.data)
+            }
+        
+            // 解决执行navigateBack或reLaunch时清除store.instances对应页面的实例
+            const onUnload = option.onUnload
+            option.onUnload = function () {
+                onUnload && onUnload.call(this)
+                store.instances[this.route] = []
+            }
 
-        Page(option)
+            Page(option)
+        } else {
+            const onLoad = option.methods.onLoad
+            option.methods.onLoad = function (e) {
+                this.store = store
+                this._updatePath = updatePath
+                rewriteUpdate(this)
+                store.instances[this.route] = []
+                store.instances[this.route].push(this)
+                onLoad && onLoad.call(this, e)
+                syncValues(store.data, this.data)
+                this.setData(this.data)
+            }
+        
+            // 解决执行navigateBack或reLaunch时清除store.instances对应页面的实例
+            const onUnload = option.methods.onUnload
+            option.methods.onUnload = function () {
+                onUnload && onUnload.call(this)
+                store.instances[this.route] = []
+            }
+
+            Component(option)
+        }
     } else {
         const ready = store.ready
         const pure = store.pure
